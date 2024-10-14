@@ -16,12 +16,6 @@ def is_jsonable(x):
         return False
 
 
-def sort_dict_by_list(my_dict, key_order):
-    sorted_dict = {key: my_dict[key] for key in key_order if key in my_dict}
-    sorted_dict.update({key: my_dict[key] for key in my_dict if key not in key_order})
-    return sorted_dict
-
-
 def get_field_value(obj, field):
     """Get the value of a given model instance field.
 

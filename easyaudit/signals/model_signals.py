@@ -22,8 +22,7 @@ from easyaudit.settings import (
 from easyaudit.utils import (
     model_delta,
     should_propagate_exceptions,
-    is_jsonable,
-    sort_dict_by_list,
+    is_jsonable,    
 )
 
 from .crud_flows import (
@@ -76,7 +75,7 @@ def _serialize_instance(instance) -> str:
         audit_fields = instance.get_audit_fields()
         if audit_fields:
             serialized_instance = _audit_fields_serializer(
-                instance, 
+                instance,
                 audit_fields
             )
             audit_fields_values.update(serialized_instance)
@@ -100,11 +99,6 @@ def _serialize_instance(instance) -> str:
                 child_json[0]['fields'].update(parent_json[0]['fields'])
 
         child_json[0]['fields'].update(audit_fields_values)
-
-        child_json[0]['fields'] = sort_dict_by_list(
-            child_json[0]['fields'],
-            audit_fields,
-        )
 
         # Return dump of the child
         return json.dumps(child_json)
