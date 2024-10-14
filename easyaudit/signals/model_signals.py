@@ -29,8 +29,56 @@ from .crud_flows import (
 
 logger = logging.getLogger(__name__)
 
+def is_jsonable(x):
+    try:
+        json.dumps(x)
+        return True
+    except (TypeError, OverflowError):
+        return False
+
+def _audit_fields_serializer(instance, audit_fields) -> dict:
+    """
+    Serialize the audit fields of the instance
+    if field has a __ in it, it will be treated as a nested field
+    """
+    serialized_fields = {}
+
+    def _recursive_getattr(obj, field):
+        fields = field.split("__")
+        
+        obj = getattr(obj, fields[0])
+
+        if len(fields) == 1:
+            return obj
+        
+        return _recursive_getattr(obj, "".join(fields[1:]))
+
+    for field in audit_fields:
+        try:
+            field_value = _recursive_getattr(instance, field)
+            if not is_jsonable(field_value):
+                field_value = str(field_value)
+
+            serialized_fields[field] = field_value
+        
+        except AttributeError:
+            pass
+
+    return serialized_fields
 
 def _serialize_instance(instance) -> str:
+
+    # If instance class has get_audit_fields method, use it to determine the fields in the serialization
+    audit_fields_values = {}
+    try:
+        audit_fields = instance.get_audit_fields()        
+        if audit_fields:
+            serialized_instance = _audit_fields_serializer(instance, audit_fields)
+            audit_fields_values.update(serialized_instance)
+        
+    except AttributeError:
+        pass
+
     # Recursive function to serialize the instance and its parents
     try:
         child_json = json.loads(serializers.serialize("json", [instance]))
@@ -45,6 +93,8 @@ def _serialize_instance(instance) -> str:
                 parent_json = json.loads(parent_dump_str)
                 # adding parent fields to child
                 child_json[0]['fields'].update(parent_json[0]['fields'])
+        
+        child_json[0]['fields'].update(audit_fields_values)
         
         # Return dump of the child
         return json.dumps(child_json)
