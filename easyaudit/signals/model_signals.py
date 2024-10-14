@@ -2,7 +2,6 @@
 import json
 import logging
 from functools import partial
-from utils import is_jsonable, sort_dict_by_list
 
 from django.conf import settings
 from django.core import serializers
@@ -19,7 +18,13 @@ from easyaudit.settings import (
     UNREGISTERED_CLASSES,
     WATCH_MODEL_EVENTS,
 )
-from easyaudit.utils import model_delta, should_propagate_exceptions
+
+from easyaudit.utils import (
+    model_delta,
+    should_propagate_exceptions,
+    is_jsonable,
+    sort_dict_by_list,
+)
 
 from .crud_flows import (
     m2m_changed_crud_flow,
