@@ -2,6 +2,7 @@
 import json
 import logging
 from functools import partial
+from utils import is_jsonable, sort_dict_by_list
 
 from django.conf import settings
 from django.core import serializers
@@ -29,12 +30,6 @@ from .crud_flows import (
 
 logger = logging.getLogger(__name__)
 
-def is_jsonable(x):
-    try:
-        json.dumps(x)
-        return True
-    except (TypeError, OverflowError):
-        return False
 
 def _audit_fields_serializer(instance, audit_fields) -> dict:
     """
@@ -45,12 +40,12 @@ def _audit_fields_serializer(instance, audit_fields) -> dict:
 
     def _recursive_getattr(obj, field):
         fields = field.split("__")
-        
+
         obj = getattr(obj, fields[0])
 
         if len(fields) == 1:
             return obj
-        
+
         return _recursive_getattr(obj, "".join(fields[1:]))
 
     for field in audit_fields:
@@ -60,31 +55,36 @@ def _audit_fields_serializer(instance, audit_fields) -> dict:
                 field_value = str(field_value)
 
             serialized_fields[field] = field_value
-        
+
         except AttributeError:
             pass
 
     return serialized_fields
 
-def _serialize_instance(instance) -> str:
 
-    # If instance class has get_audit_fields method, use it to determine the fields in the serialization
+def _serialize_instance(instance) -> str:
+    # If instance class has get_audit_fields method, use it to determine 
+    # the fields in the serialization
     audit_fields_values = {}
+    audit_fields = []
     try:
-        audit_fields = instance.get_audit_fields()        
+        audit_fields = instance.get_audit_fields()
         if audit_fields:
-            serialized_instance = _audit_fields_serializer(instance, audit_fields)
+            serialized_instance = _audit_fields_serializer(
+                instance, 
+                audit_fields
+            )
             audit_fields_values.update(serialized_instance)
-        
+
     except AttributeError:
         pass
 
     # Recursive function to serialize the instance and its parents
     try:
         child_json = json.loads(serializers.serialize("json", [instance]))
-        
+
         parent_models: dict = instance._meta.parents
-        
+
         for _, one_to_one in parent_models.items():
             parent_instance = getattr(instance, one_to_one.name)
 
@@ -93,13 +93,18 @@ def _serialize_instance(instance) -> str:
                 parent_json = json.loads(parent_dump_str)
                 # adding parent fields to child
                 child_json[0]['fields'].update(parent_json[0]['fields'])
-        
+
         child_json[0]['fields'].update(audit_fields_values)
-        
+
+        child_json[0]['fields'] = sort_dict_by_list(
+            child_json[0]['fields'],
+            audit_fields,
+        )
+
         # Return dump of the child
         return json.dumps(child_json)
-    
-    except Exception as e:
+
+    except Exception:
         return None
 
 

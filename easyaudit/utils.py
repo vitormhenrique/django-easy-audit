@@ -1,10 +1,25 @@
 import datetime as dt
+import json
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import NOT_PROVIDED, DateTimeField
 from django.utils import timezone
 from django.utils.encoding import smart_str
+
+
+def is_jsonable(x):
+    try:
+        json.dumps(x)
+        return True
+    except (TypeError, OverflowError):
+        return False
+
+
+def sort_dict_by_list(my_dict, key_order):
+    sorted_dict = {key: my_dict[key] for key in key_order if key in my_dict}
+    sorted_dict.update({key: my_dict[key] for key in my_dict if key not in key_order})
+    return sorted_dict
 
 
 def get_field_value(obj, field):
