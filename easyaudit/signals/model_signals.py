@@ -30,6 +30,29 @@ from .crud_flows import (
 logger = logging.getLogger(__name__)
 
 
+def _serialize_instance(instance) -> str:
+    # Recursive function to serialize the instance and its parents
+    try:
+        child_json = json.loads(serializers.serialize("json", [instance]))
+        
+        parent_models: dict = instance._meta.parents
+        
+        for _, one_to_one in parent_models.items():
+            parent_instance = getattr(instance, one_to_one.name)
+
+            if parent_instance:
+                parent_dump_str = _serialize_instance(parent_instance)
+                parent_json = json.loads(parent_dump_str)
+                # adding parent fields to child
+                child_json[0]['fields'].update(parent_json[0]['fields'])
+        
+        # Return dump of the child
+        return json.dumps(child_json)
+    
+    except Exception as e:
+        return None
+
+
 def should_audit(instance):
     """Return True or False to indicate whether the instance should be audited."""
     # do not audit any model listed in UNREGISTERED_CLASSES
@@ -87,10 +110,10 @@ def pre_save(sender, instance, raw, using, update_fields, **kwargs):
 
         with transaction.atomic(using=using):
             try:
-                object_json_repr = serializers.serialize("json", [instance])
+                # object_json_repr = serializers.serialize("json", [instance])                
+                object_json_repr = _serialize_instance(instance)
             except Exception:
-                # We need a better way for this to work. ManyToMany will fail on
-                # pre_save on create
+                # We need a better way for this to work. ManyToMany will fail on pre_save on create
                 return None
 
             # Determine if the instance is a create
@@ -141,7 +164,10 @@ def post_save(sender, instance, created, raw, using, update_fields, **kwargs):
             return False
 
         with transaction.atomic(using=using):
-            object_json_repr = serializers.serialize("json", [instance])
+            try:
+                object_json_repr = _serialize_instance(instance)
+            except Exception:
+                object_json_repr = serializers.serialize("json", [instance])
 
             # callbacks
             create_crud_event = call_callbacks(
@@ -187,7 +213,10 @@ def m2m_changed(sender, instance, action, reverse, model, pk_set, using, **kwarg
             return False
 
         with transaction.atomic(using=using):
-            object_json_repr = serializers.serialize("json", [instance])
+            try:
+                object_json_repr = _serialize_instance(instance)
+            except Exception:
+                object_json_repr = serializers.serialize("json", [instance])
 
             if reverse:
                 reverse_actions = {
