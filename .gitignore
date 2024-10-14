@@ -91,3 +91,9 @@ ENV/
 
 # DB
 db.sqlite3
+
+# History
+.history
+
+# MacOS folder attributes
+.DS_Store 
