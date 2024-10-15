@@ -51,7 +51,7 @@ def _audit_fields_serializer(instance, audit_fields: set) -> dict:
         if len(fields) == 1:
             return obj
 
-        return _recursive_getattr(obj, "".join(fields[1:]))
+        return _recursive_getattr(obj, "__".join(fields[1:]))
 
     for field in audit_fields:
         try:
