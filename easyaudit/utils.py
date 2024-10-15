@@ -8,6 +8,37 @@ from django.utils import timezone
 from django.utils.encoding import smart_str
 
 
+def get_audit_fields(instance_or_class):
+    """Get the audit fields for a model instance.
+
+    :param instance: The model instance or model class.
+    """
+    audit_fields = set()
+    audit_fields_exclude = set()
+
+    # Update set with all fields explicitly defined in
+    # the audit_fields attribute
+    # This may include fields that are related to other models
+    # when using the "__" syntax
+    # like: audit_fields = {"field1", "field2", "related_model__field3"}
+    if hasattr(instance_or_class, "audit_fields"):
+        audit_fields.update(instance_or_class.audit_fields)
+
+    # If "*" is in audit_fields, add all model fields to audit_fields set
+    if "*" in audit_fields:
+        audit_fields.update(
+            field.name for field in instance_or_class._meta.fields
+        )
+        audit_fields.remove("*")
+
+    # update exclude set with all fields explicitly defined
+    # in the audit_fields_exclude attribute
+    if hasattr(instance_or_class, "audit_fields_exclude"):
+        audit_fields_exclude.update(instance_or_class.audit_fields_exclude)
+
+    return audit_fields - audit_fields_exclude
+
+
 def is_jsonable(x):
     try:
         json.dumps(x)

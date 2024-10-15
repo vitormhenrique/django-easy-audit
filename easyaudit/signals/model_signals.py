@@ -22,7 +22,8 @@ from easyaudit.settings import (
 from easyaudit.utils import (
     model_delta,
     should_propagate_exceptions,
-    is_jsonable,    
+    is_jsonable,
+    get_audit_fields,
 )
 
 from .crud_flows import (
@@ -35,14 +36,14 @@ from .crud_flows import (
 logger = logging.getLogger(__name__)
 
 
-def _audit_fields_serializer(instance, audit_fields) -> dict:
+def _audit_fields_serializer(instance, audit_fields: set) -> dict:
     """
     Serialize the audit fields of the instance
     if field has a __ in it, it will be treated as a nested field
     """
     serialized_fields = {}
 
-    def _recursive_getattr(obj, field):
+    def _recursive_getattr(obj, field: str):
         fields = field.split("__")
 
         obj = getattr(obj, fields[0])
@@ -70,9 +71,9 @@ def _serialize_instance(instance) -> str:
     # If instance class has get_audit_fields method, use it to determine 
     # the fields in the serialization
     audit_fields_values = {}
-    audit_fields = []
+    audit_fields = get_audit_fields(instance)
+
     try:
-        audit_fields = instance.get_audit_fields()
         if audit_fields:
             serialized_instance = _audit_fields_serializer(
                 instance,
