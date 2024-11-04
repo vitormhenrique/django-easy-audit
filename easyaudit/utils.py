@@ -8,42 +8,42 @@ from django.utils import timezone
 from django.utils.encoding import smart_str
 
 
-def get_audit_stream_fields(instance_or_class):
+def get_audit_log_fields(instance_or_class):
     """Get the audit fields for a model instance.
 
     :param instance: The model instance or model class.
     """
-    audit_stream_fields = set()
-    audit_stream_fields_exclude = set()
+    audit_log_fields = set()
+    audit_log_fields_exclude = set()
 
     # Update set with all fields explicitly defined in
-    # the audit_stream_fields attribute
+    # the audit_log_fields attribute
     # This may include fields that are related to other models
     # when using the "__" syntax
-    # like: audit_stream_fields = {"field1", "field2", "related_model__field3"}
-    if hasattr(instance_or_class, "audit_stream_fields"):
-        audit_stream_fields.update(instance_or_class.audit_stream_fields)
+    # like: audit_log_fields = {"field1", "field2", "related_model__field3"}
+    if hasattr(instance_or_class, "audit_log_fields"):
+        audit_log_fields.update(instance_or_class.audit_log_fields)
     else:
-        # if no audit_stream_fields attribute is defined,
-        # add all fields to audit_stream_fields set
-        audit_stream_fields.add("*")
+        # if no audit_log_fields attribute is defined,
+        # add all fields to audit_log_fields set
+        audit_log_fields.add("*")
 
-    # If "*" is in audit_stream_fields, add all model fields
-    # to audit_stream_fields set
-    if "*" in audit_stream_fields:
-        audit_stream_fields.update(
+    # If "*" is in audit_log_fields, add all model fields
+    # to audit_log_fields set
+    if "*" in audit_log_fields:
+        audit_log_fields.update(
             field.name for field in instance_or_class._meta.fields
         )
-        audit_stream_fields.remove("*")
+        audit_log_fields.remove("*")
 
     # update exclude set with all fields explicitly defined
-    # in the audit_stream_fields_exclude attribute
-    if hasattr(instance_or_class, "audit_stream_fields_exclude"):
-        audit_stream_fields_exclude.update(
-            instance_or_class.audit_stream_fields_exclude
+    # in the audit_log_fields_exclude attribute
+    if hasattr(instance_or_class, "audit_log_fields_exclude"):
+        audit_log_fields_exclude.update(
+            instance_or_class.audit_log_fields_exclude
         )
 
-    return audit_stream_fields - audit_stream_fields_exclude
+    return audit_log_fields - audit_log_fields_exclude
 
 
 def is_jsonable(x):

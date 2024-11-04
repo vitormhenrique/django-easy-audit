@@ -23,7 +23,7 @@ from easyaudit.utils import (
     model_delta,
     should_propagate_exceptions,
     is_jsonable,
-    get_audit_stream_fields,
+    get_audit_log_fields,
 )
 
 from .crud_flows import (
@@ -68,18 +68,18 @@ def _audit_fields_serializer(instance, audit_fields: set) -> dict:
 
 
 def _serialize_instance(instance) -> str:
-    # If instance class has get_audit_stream_fields method, use it to determine
+    # If instance class has get_audit_log_fields method, use it to determine
     # the fields in the serialization
-    audit_stream_fields_values = {}
-    audit_stream_fields = get_audit_stream_fields(instance)
+    audit_log_fields_values = {}
+    audit_log_fields = get_audit_log_fields(instance)
 
     try:
-        if audit_stream_fields:
+        if audit_log_fields:
             serialized_instance = _audit_fields_serializer(
                 instance,
-                audit_stream_fields
+                audit_log_fields
             )
-            audit_stream_fields_values.update(serialized_instance)
+            audit_log_fields_values.update(serialized_instance)
 
     except AttributeError:
         pass
@@ -99,7 +99,7 @@ def _serialize_instance(instance) -> str:
                 # adding parent fields to child
                 child_json[0]['fields'].update(parent_json[0]['fields'])
 
-        child_json[0]['fields'].update(audit_stream_fields_values)
+        child_json[0]['fields'].update(audit_log_fields_values)
 
         # Return dump of the child
         return json.dumps(child_json)
