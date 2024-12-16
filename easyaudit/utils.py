@@ -6,7 +6,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import NOT_PROVIDED, DateTimeField
 from django.utils import timezone
 from django.utils.encoding import smart_str
-
+from django.db.models.query import QuerySet
+from django.db.models.manager import Manager
 
 def get_audit_log_fields(instance_or_class):
     """Get the audit fields for a model instance.
@@ -95,17 +96,69 @@ def model_delta(old_model, new_model):
     :rtype: dict
     """
     delta = {}
-    fields = new_model._meta.fields
+    
+    fields = new_model._meta.get_fields()
     for field in fields:
         old_value = get_field_value(old_model, field)
         new_value = get_field_value(new_model, field)
         if old_value != new_value:
             delta[field.name] = [smart_str(old_value), smart_str(new_value)]
 
+    m2m_fields = {relation for relation in new_model.audit_log_fields if '+' in relation}
+    for field in m2m_fields:
+        old_value = _get_m2m_values(old_model, field)
+        new_value = _get_m2m_values(new_model, field)
+        if old_value != new_value:
+            delta[field] = [old_value, new_value]
+    
     if len(delta) == 0:
         delta = None
 
     return delta
+
+
+def _get_m2m_values(instance, m2m_field) -> str:
+    """
+    Serialize the audit fields of the instance
+    if field has a __ in it, it will be treated as a nested field
+    """
+
+    def _recursive_getattr(obj, field: str):
+        
+        if not field:
+            return obj
+        
+        fields = field.split("__")
+
+        first_field = fields.pop(0)
+
+        # If there is a * denoting a Many-to-Many relationship
+        if '+' in first_field:
+            first_field = first_field.replace('+', '')
+
+            obj = getattr(obj, first_field)
+
+            children = []
+            children_field_values = []
+
+            if isinstance(obj, Manager):
+                children: QuerySet = obj.all().order_by('pk')[:50]
+            elif isinstance(obj, QuerySet):
+                children = obj
+
+            for obj in children:
+                children_field_values.append(_recursive_getattr(obj, "__".join(fields)))
+
+            return children_field_values
+
+        else:
+            obj = getattr(obj, first_field)
+
+            return _recursive_getattr(obj, "__".join(fields))
+
+    field_value = _recursive_getattr(instance, m2m_field)
+
+    return str(field_value)
 
 
 def get_m2m_field_name(model, instance):

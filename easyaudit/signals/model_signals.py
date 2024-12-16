@@ -9,6 +9,9 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.db.models import signals
 from django.utils.encoding import force_str
+from django.db.models.query import QuerySet
+
+from django.db.models.manager import Manager
 
 from easyaudit.middleware.easyaudit import get_current_request
 from easyaudit.models import CRUDEvent
@@ -44,14 +47,37 @@ def _audit_fields_serializer(instance, audit_fields: set) -> dict:
     serialized_fields = {}
 
     def _recursive_getattr(obj, field: str):
-        fields = field.split("__")
 
-        obj = getattr(obj, fields[0])
-
-        if len(fields) == 1:
+        if not field:
             return obj
 
-        return _recursive_getattr(obj, "__".join(fields[1:]))
+        fields = field.split("__")
+
+        first_field = fields.pop(0)
+
+        # If there is a + denoting a Many-to-Many relationship
+        if '+' in first_field:
+            first_field = first_field.replace('+', '')
+
+            obj = getattr(obj, first_field)
+
+            children = []
+            children_field_values = []
+
+            if isinstance(obj, Manager):
+                children: QuerySet = obj.all()[:10]
+            elif isinstance(obj, QuerySet):
+                children = obj
+
+            for obj in children:
+                children_field_values.append(_recursive_getattr(obj, "__".join(fields)))
+
+            return children_field_values
+
+        else:
+            obj = getattr(obj, first_field)
+
+            return _recursive_getattr(obj, "__".join(fields))
 
     for field in audit_fields:
         try:
@@ -172,7 +198,7 @@ def pre_save(sender, instance, raw, using, update_fields, **kwargs):
                 return None
 
             # Determine if the instance is a create
-            created = instance.pk is None or instance._state.adding
+            created = instance.pk is None #or instance._state.adding
 
             # created or updated?
             delta = {}
@@ -324,7 +350,11 @@ def post_delete(sender, instance, using, **kwargs):
             return False
 
         with transaction.atomic(using=using):
-            object_json_repr = serializers.serialize("json", [instance])
+            try:
+                object_json_repr = _serialize_instance(instance)
+            except Exception:
+                object_json_repr = serializers.serialize("json", [instance])
+
             # instance.pk returns None if the changes are performed within a transaction
             object_id = instance.pk
 
