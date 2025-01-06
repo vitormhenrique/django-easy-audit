@@ -11,6 +11,9 @@ from django.db.models import signals
 from django.utils.encoding import force_str
 from django.db.models.query import QuerySet
 
+from django.core.cache import cache
+
+
 from django.db.models.manager import Manager
 
 from easyaudit.middleware.easyaudit import get_current_request
@@ -30,11 +33,14 @@ from easyaudit.utils import (
 )
 
 from .crud_flows import (
+    cache_m2m_field,
     m2m_changed_crud_flow,
     post_delete_crud_flow,
     post_save_crud_flow,
     pre_save_crud_flow,
+
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -290,6 +296,10 @@ def m2m_changed(sender, instance, action, reverse, model, pk_set, using, **kwarg
     try:
         if not should_audit(instance):
             return False
+        
+        if action in {"pre_add", "pre_remove", "pre_clear"}:
+            cache_m2m_field(model, instance, action)
+
         if action not in ("post_add", "post_remove", "post_clear"):
             return False
 

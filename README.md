@@ -1,4 +1,11 @@
 # django-easy-audit
+This is a heavily modified version from django-easy-audit (awesome project!) to attend
+specific requirements:
+- Adding some enhanced M2M logging.
+- Limited Support to Quantity fields (pint)
+- Logging information of parent class instance when a subclass instance is changed.
+
+The original readme of django-easy-audit is shown below.
 
 [![pypi](https://img.shields.io/pypi/v/django-easy-audit.svg)](https://pypi.org/project/django-easy-audit/)
 ![PyPI - Django Version](https://img.shields.io/pypi/frameworkversions/django/django-easy-audit)

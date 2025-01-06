@@ -9,6 +9,7 @@ from django.utils.encoding import smart_str
 from django.db.models.query import QuerySet
 from django.db.models.manager import Manager
 
+
 def get_audit_log_fields(instance_or_class):
     """Get the audit fields for a model instance.
 
@@ -76,7 +77,17 @@ def get_field_value(obj, field):
             value = field.default if field.default is not NOT_PROVIDED else None
     else:
         try:
-            value = smart_str(getattr(obj, field.name, None))
+
+            try:
+                from pint import Quantity
+                value = getattr(obj, field.name, None)
+                if isinstance(value, Quantity):                    
+                    value = value.to(field.units)
+            except ModuleNotFoundError:
+                value = smart_str(getattr(obj, field.name, None))
+
+            value = smart_str(value)
+
         except ObjectDoesNotExist:
             value = field.default if field.default is not NOT_PROVIDED else None
 
@@ -97,19 +108,24 @@ def model_delta(old_model, new_model):
     """
     delta = {}
     
-    fields = new_model._meta.get_fields()
+    if hasattr(new_model, 'audit_log_fields_exclude'):
+        fields = list(field for field in new_model._meta.get_fields() if field.name not in new_model.audit_log_fields_exclude)    
+
+    else:
+        fields = new_model._meta.get_fields()
+
     for field in fields:
         old_value = get_field_value(old_model, field)
         new_value = get_field_value(new_model, field)
         if old_value != new_value:
             delta[field.name] = [smart_str(old_value), smart_str(new_value)]
 
-    m2m_fields = {relation for relation in new_model.audit_log_fields if '+' in relation}
-    for field in m2m_fields:
-        old_value = _get_m2m_values(old_model, field)
-        new_value = _get_m2m_values(new_model, field)
-        if old_value != new_value:
-            delta[field] = [old_value, new_value]
+    # m2m_fields = {relation for relation in new_model.audit_log_fields if '+' in relation}
+    # for field in m2m_fields:
+    #     old_value = _get_m2m_values(old_model, field)
+    #     new_value = _get_m2m_values(new_model, field)
+    #     if old_value != new_value:
+    #         delta[field] = [old_value, new_value]
     
     if len(delta) == 0:
         delta = None
