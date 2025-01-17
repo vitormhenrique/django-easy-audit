@@ -137,7 +137,7 @@ def m2m_changed_crud_flow(  # noqa: PLR0913
     try:
         if action == "post_clear":
             changed_fields = []
-        
+
         else:
             new_values = get_m2m_field_values(model, instance)
 

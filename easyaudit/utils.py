@@ -188,10 +188,14 @@ def get_m2m_field_name(model, instance):
     :return: ManyToManyField name of instance related to model.
     :rtype: str
     """
-    for x in model._meta.related_objects:
-        if x.related_model().__class__ == instance.__class__:
-            return x.remote_field.name
-    return None
+    try:
+        for x in model._meta.related_objects:
+            if x.related_model().__class__ == instance.__class__ and x.many_to_many:
+                return x.remote_field.name
+        return None
+
+    except Exception:
+        return None
 
 
 def should_propagate_exceptions():

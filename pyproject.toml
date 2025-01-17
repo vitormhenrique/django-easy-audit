@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "django-easy-audit"
-version = "2.0.4"
+version = "2.0.5"
 description = "Yet another Django audit log app, hopefully the simplest one."
 license = "GPL3"
 authors = ["Natán Calzolari <natancalzolari@gmail.com>"]
